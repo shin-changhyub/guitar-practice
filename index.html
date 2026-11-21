@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>기타 연습 플레이리스트</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1d2026; --panel2: #262a32; --line: #333844;
+    --text: #e8e9ec; --muted: #9aa0ab; --accent: #f0a63a; --danger: #e5534b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .spacer { flex: 1; }
+  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 0; height: calc(100vh - 57px); }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+  aside { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+  main { padding: 20px; overflow: auto; }
+
+  button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line);
+           border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button.primary { white-space: nowrap; background: var(--accent); border-color: var(--accent); color: #1a1a1a; font-weight: 600; }
+  button.small { padding: 3px 7px; font-size: 12px; }
+  button.active { background: var(--accent); color: #1a1a1a; border-color: var(--accent); }
+  input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+          border-radius: 6px; padding: 7px 9px; width: 100%; }
+  input:focus { outline: none; border-color: var(--accent); }
+
+  .add-form { padding: 14px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+  .add-form .row { display: flex; gap: 8px; }
+  .err { color: var(--danger); font-size: 12px; min-height: 1em; }
+
+  ol.list { list-style: none; margin: 0; padding: 6px; overflow: auto; flex: 1; counter-reset: n; }
+  ol.list li { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px; cursor: pointer;
+               border: 1px solid transparent; counter-increment: n; }
+  ol.list li::before { content: counter(n); color: var(--muted); width: 22px; text-align: right; font-size: 13px; flex-shrink: 0; }
+  ol.list li:hover { background: var(--panel2); }
+  ol.list li.playing { background: var(--panel2); border-color: var(--accent); }
+  ol.list li.playing .title { color: var(--accent); font-weight: 600; }
+  ol.list li.dragging { opacity: .4; }
+  ol.list li.drop-target { border-top: 2px solid var(--accent); }
+  ol.list li img { width: 64px; height: 36px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: #000; }
+  ol.list li .title { flex: 1; font-size: 14px; word-break: break-all; }
+  ol.list li .tools { display: none; gap: 3px; }
+  ol.list li:hover .tools, ol.list li.playing .tools { display: flex; }
+  .empty { color: var(--muted); padding: 20px; text-align: center; font-size: 14px; line-height: 1.6; }
+
+  .player-wrap { position: relative; width: 100%; max-width: 1100px; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; }
+  .player-wrap #player, .player-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); text-align: center; padding: 20px; }
+  .now { margin: 14px 0 10px; font-size: 18px; font-weight: 600; }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; max-width: 1100px; }
+  .group { display: flex; gap: 5px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .group .label { color: var(--muted); font-size: 12px; margin-right: 4px; }
+  .notice { margin-top: 12px; padding: 10px 12px; background: #3a2a18; border: 1px solid #6b4a1f; border-radius: 8px; font-size: 13px; max-width: 1100px; display: none; }
+  .notice a { color: var(--accent); }
+  .help { color: var(--muted); font-size: 12px; margin-top: 16px; line-height: 1.7; max-width: 1100px; }
+  kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎸 기타 연습 플레이리스트</h1>
+  <div class="spacer"></div>
+  <button id="exportBtn" title="목록을 파일로 저장">백업 저장</button>
+  <button id="importBtn" title="저장한 백업 파일 불러오기">백업 불러오기</button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+</header>
+
+<div class="layout">
+  <aside>
+    <form class="add-form" id="addForm" autocomplete="off">
+      <input id="urlInput" placeholder="유튜브 링크 붙여넣기 (https://youtu.be/...)" required>
+      <div class="row">
+        <input id="titleInput" placeholder="제목 (비우면 자동으로 가져옴)">
+        <button class="primary" type="submit">추가</button>
+      </div>
+      <div class="err" id="addErr"></div>
+    </form>
+    <ol class="list" id="list"></ol>
+  </aside>
+
+  <main>
+    <div class="player-wrap">
+      <div id="player"></div>
+      <div class="placeholder" id="placeholder">왼쪽 목록에서 곡을 클릭하면 여기서 재생됩니다.</div>
+    </div>
+    <div class="now" id="nowTitle"></div>
+
+    <div class="controls">
+      <div class="group">
+        <button id="prevBtn" title="이전 곡">⏮ 이전</button>
+        <button id="nextBtn" title="다음 곡">다음 ⏭</button>
+      </div>
+      <div class="group" id="speedGroup">
+        <span class="label">속도</span>
+      </div>
+      <div class="group">
+        <span class="label">구간 반복</span>
+        <button id="aBtn" title="현재 위치를 시작점(A)으로">A 지정</button>
+        <button id="bBtn" title="현재 위치를 끝점(B)으로">B 지정</button>
+        <button id="clearAbBtn" title="구간 반복 해제">해제</button>
+        <span class="label" id="abInfo"></span>
+      </div>
+      <div class="group">
+        <button id="autoNextBtn" title="영상이 끝나면 다음 곡 자동 재생">끝나면 다음 곡</button>
+      </div>
+    </div>
+
+    <div class="notice" id="notice"></div>
+
+    <div class="help">
+      · 목록 항목을 <b>드래그</b>하거나 ▲▼ 버튼으로 순서를 바꿀 수 있어요. ✎ 제목 수정, ✕ 삭제.<br>
+      · 목록은 이 브라우저에 자동 저장됩니다. 다른 컴퓨터/브라우저로 옮길 땐 <b>백업 저장 → 백업 불러오기</b>를 쓰세요.<br>
+      · 단축키: <kbd>Space</kbd> 재생/일시정지 · <kbd>←</kbd>/<kbd>→</kbd> 5초 이동 · <kbd>N</kbd> 다음 곡 · <kbd>P</kbd> 이전 곡 · <kbd>[</kbd>/<kbd>]</kbd> A/B 지정
+    </div>
+  </main>
+</div>
+
+<script>
+const STORE_KEY = 'guitarPractice.v1';
+const SPEEDS = [0.5, 0.75, 0.9, 1];
+
+let state = load();
+let player = null, playerReady = false, pendingId = null;
+let currentIndex = -1;
+let loopA = null, loopB = null, loopTimer = null;
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (s && Array.isArray(s.items)) return Object.assign({ autoNext: false, speed: 1 }, s);
+  } catch (e) {}
+  return { items: [], autoNext: false, speed: 1 };
+}
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+// ---------- YouTube URL parsing ----------
+function parseYouTube(raw) {
+  raw = raw.trim();
+  if (/^[\w-]{11}$/.test(raw)) return { id: raw, start: 0 };
+  let u;
+  try { u = new URL(raw.startsWith('http') ? raw : 'https://' + raw); } catch (e) { return null; }
+  const host = u.hostname.replace(/^(www\.|m\.|music\.)/, '');
+  let id = null;
+  if (host === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
+  else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+    if (u.pathname === '/watch') id = u.searchParams.get('v');
+    else {
+      const m = u.pathname.match(/^\/(embed|shorts|live|v)\/([\w-]{11})/);
+      if (m) id = m[2];
+    }
+  }
+  if (!id || !/^[\w-]{11}$/.test(id)) return null;
+  return { id, start: parseTime(u.searchParams.get('t') || u.searchParams.get('start')) };
+}
+function parseTime(t) {
+  if (!t) return 0;
+  if (/^\d+$/.test(t)) return +t;
+  const m = t.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/);
+  return m ? (+(m[1] || 0)) * 3600 + (+(m[2] || 0)) * 60 + (+(m[3] || 0)) : 0;
+}
+const fmt = s => { s = Math.floor(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+async function fetchTitle(id) {
+  try {
+    const r = await fetch('https://www.youtube.com/oembed?format=json&url=' +
+      encodeURIComponent('https://www.youtube.com/watch?v=' + id));
+    if (r.ok) return (await r.json()).title;
+  } catch (e) {}
+  return null;
+}
+
+// ---------- List rendering ----------
+const listEl = document.getElementById('list');
+function render() {
+  listEl.innerHTML = '';
+  if (!state.items.length) {
+    listEl.innerHTML = '<div class="empty">아직 등록된 영상이 없어요.<br>위에 유튜브 링크를 붙여넣고 <b>추가</b>를 누르세요.</div>';
+    return;
+  }
+  state.items.forEach((it, i) => {
+    const li = document.createElement('li');
+    li.draggable = true;
+    li.dataset.index = i;
+    if (i === currentIndex) li.classList.add('playing');
+    li.innerHTML = `
+      <img src="https://i.ytimg.com/vi/${it.videoId}/mqdefault.jpg" alt="" loading="lazy">
+      <span class="title"></span>
+      <span class="tools">
+        <button class="small" data-act="up" title="위로">▲</button>
+        <button class="small" data-act="down" title="아래로">▼</button>
+        <button class="small" data-act="edit" title="제목 수정">✎</button>
+        <button class="small" data-act="del" title="삭제">✕</button>
+      </span>`;
+    li.querySelector('.title').textContent = it.title;
+    listEl.appendChild(li);
+  });
+}
+
+listEl.addEventListener('click', e => {
+  const li = e.target.closest('li'); if (!li) return;
+  const i = +li.dataset.index;
+  const act = e.target.dataset.act;
+  if (!act) return play(i);
+  e.stopPropagation();
+  if (act === 'up' && i > 0) move(i, i - 1);
+  else if (act === 'down' && i < state.items.length - 1) move(i, i + 1);
+  else if (act === 'edit') {
+    const t = prompt('제목 수정', state.items[i].title);
+    if (t && t.trim()) { state.items[i].title = t.trim(); save(); render(); if (i === currentIndex) showNow(); }
+  } else if (act === 'del') {
+    if (!confirm(`"${state.items[i].title}" 을(를) 삭제할까요?`)) return;
+    state.items.splice(i, 1);
+    if (i === currentIndex) currentIndex = -1; else if (i < currentIndex) currentIndex--;
+    save(); render();
+  }
+});
+
+function move(from, to) {
+  const playingId = state.items[currentIndex]?.id;
+  const [it] = state.items.splice(from, 1);
+  state.items.splice(to, 0, it);
+  currentIndex = state.items.findIndex(x => x.id === playingId);
+  save(); render(); showNow();
+}
+
+// drag & drop reorder
+let dragFrom = null;
+listEl.addEventListener('dragstart', e => {
+  const li = e.target.closest('li'); if (!li) return;
+  dragFrom = +li.dataset.index; li.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+});
+listEl.addEventListener('dragover', e => {
+  const li = e.target.closest('li'); if (!li || dragFrom === null) return;
+  e.preventDefault();
+  listEl.querySelectorAll('.drop-target').forEach(x => x.classList.remove('drop-target'));
+  li.classList.add('drop-target');
+});
+listEl.addEventListener('drop', e => {
+  const li = e.target.closest('li'); if (!li || dragFrom === null) return;
+  e.preventDefault();
+  const to = +li.dataset.index;
+  if (to !== dragFrom) move(dragFrom, to);
+});
+listEl.addEventListener('dragend', () => { dragFrom = null; render(); });
+
+// ---------- Add ----------
+document.getElementById('addForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const urlIn = document.getElementById('urlInput'), titleIn = document.getElementById('titleInput');
+  const err = document.getElementById('addErr');
+  const p = parseYouTube(urlIn.value);
+  if (!p) { err.textContent = '유튜브 링크를 인식하지 못했어요. 링크를 다시 확인해 주세요.'; return; }
+  err.textContent = '';
+  let title = titleIn.value.trim();
+  if (!title) { err.textContent = '제목 가져오는 중…'; title = (await fetchTitle(p.id)) || ('영상 ' + p.id); err.textContent = ''; }
+  state.items.push({ id: uid(), videoId: p.id, start: p.start, title });
+  save(); render();
+  urlIn.value = ''; titleIn.value = ''; urlIn.focus();
+});
+
+// ---------- Player ----------
+const tag = document.createElement('script');
+tag.src = 'https://www.youtube.com/iframe_api';
+tag.onerror = () => showNotice('유튜브 플레이어를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
+document.head.appendChild(tag);
+
+window.onYouTubeIframeAPIReady = function () {
+  player = new YT.Player('player', {
+    width: '100%', height: '100%',
+    playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
+    events: {
+      onReady: () => { playerReady = true; if (pendingId !== null) { const i = pendingId; pendingId = null; play(i); } },
+      onStateChange: e => {
+        if (e.data === YT.PlayerState.PLAYING) player.setPlaybackRate(state.speed);
+        if (e.data === YT.PlayerState.ENDED && state.autoNext && loopA === null) next();
+      },
+      onError: e => {
+        const it = state.items[currentIndex];
+        const link = it ? `https://www.youtube.com/watch?v=${it.videoId}${it.start ? '&t=' + it.start : ''}` : '#';
+        const embedBlocked = e.data === 101 || e.data === 150 || e.data === 153;
+        showNotice((embedBlocked
+          ? (location.protocol === 'file:'
+              ? '이 영상은 파일로 직접 연 페이지에서는 재생이 막혀 있어요. 웹 주소(예: GitHub Pages)로 열면 대부분 해결됩니다. '
+              : '이 영상은 업로더가 외부 재생을 막아 두었어요. ')
+          : '영상을 재생할 수 없어요 (오류 ' + e.data + '). ')
+          + `<a href="${link}" target="_blank" rel="noopener">유튜브에서 열기 ↗</a>`);
+      }
+    }
+  });
+};
+
+function play(i) {
+  if (i < 0 || i >= state.items.length) return;
+  currentIndex = i;
+  clearLoop();
+  hideNotice();
+  render(); showNow();
+  document.getElementById('placeholder').style.display = 'none';
+  if (!playerReady) { pendingId = i; return; }
+  const it = state.items[i];
+  player.loadVideoById({ videoId: it.videoId, startSeconds: it.start || 0 });
+}
+function showNow() {
+  const it = state.items[currentIndex];
+  document.getElementById('nowTitle').textContent = it ? `${currentIndex + 1}. ${it.title}` : '';
+}
+function next() { if (state.items.length) play(currentIndex + 1 < state.items.length ? currentIndex + 1 : 0); }
+function prev() { if (state.items.length) play(currentIndex > 0 ? currentIndex - 1 : state.items.length - 1); }
+document.getElementById('nextBtn').onclick = next;
+document.getElementById('prevBtn').onclick = prev;
+
+// speed
+const speedGroup = document.getElementById('speedGroup');
+SPEEDS.forEach(s => {
+  const b = document.createElement('button');
+  b.textContent = s === 1 ? '1x' : s + 'x';
+  b.dataset.speed = s;
+  b.onclick = () => { state.speed = s; save(); updateSpeedUI(); if (playerReady) player.setPlaybackRate(s); };
+  speedGroup.appendChild(b);
+});
+function updateSpeedUI() {
+  speedGroup.querySelectorAll('button').forEach(b => b.classList.toggle('active', +b.dataset.speed === state.speed));
+}
+
+// A-B loop
+function setA() { if (!playerReady || currentIndex < 0) return; loopA = player.getCurrentTime(); if (loopB !== null && loopB <= loopA) loopB = null; updateLoop(); }
+function setB() { if (!playerReady || currentIndex < 0) return; const t = player.getCurrentTime(); if (loopA === null || t <= loopA) return; loopB = t; updateLoop(); player.seekTo(loopA, true); }
+function clearLoop() { loopA = loopB = null; updateLoop(); }
+function updateLoop() {
+  document.getElementById('abInfo').textContent =
+    loopA === null ? '' : `${fmt(loopA)} ~ ${loopB === null ? '?' : fmt(loopB)}`;
+  document.getElementById('aBtn').classList.toggle('active', loopA !== null);
+  document.getElementById('bBtn').classList.toggle('active', loopB !== null);
+  clearInterval(loopTimer); loopTimer = null;
+  if (loopA !== null && loopB !== null) {
+    loopTimer = setInterval(() => {
+      if (playerReady && player.getCurrentTime() >= loopB) player.seekTo(loopA, true);
+    }, 200);
+  }
+}
+document.getElementById('aBtn').onclick = setA;
+document.getElementById('bBtn').onclick = setB;
+document.getElementById('clearAbBtn').onclick = clearLoop;
+
+// auto next
+const autoBtn = document.getElementById('autoNextBtn');
+function updateAutoUI() { autoBtn.classList.toggle('active', state.autoNext); }
+autoBtn.onclick = () => { state.autoNext = !state.autoNext; save(); updateAutoUI(); };
+
+// notice
+function showNotice(html) { const n = document.getElementById('notice'); n.innerHTML = html; n.style.display = 'block'; }
+function hideNotice() { document.getElementById('notice').style.display = 'none'; }
+
+// keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key;
+  if (k === 'n' || k === 'N') next();
+  else if (k === 'p' || k === 'P') prev();
+  else if (k === '[') setA();
+  else if (k === ']') setB();
+  else if (!playerReady || currentIndex < 0) return;
+  else if (k === ' ') { e.preventDefault(); player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo(); }
+  else if (k === 'ArrowLeft') { e.preventDefault(); player.seekTo(Math.max(0, player.getCurrentTime() - 5), true); }
+  else if (k === 'ArrowRight') { e.preventDefault(); player.seekTo(player.getCurrentTime() + 5, true); }
+});
+
+// ---------- Backup ----------
+document.getElementById('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify({ items: state.items }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `기타연습목록_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
+document.getElementById('importFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    const items = (data.items || []).filter(x => x && /^[\w-]{11}$/.test(x.videoId))
+      .map(x => ({ id: x.id || uid(), videoId: x.videoId, start: +x.start || 0, title: String(x.title || x.videoId) }));
+    if (!items.length) throw new Error();
+    if (state.items.length && !confirm(`현재 목록(${state.items.length}개)을 백업 파일 목록(${items.length}개)으로 바꿀까요?`)) return;
+    state.items = items; currentIndex = -1; save(); render(); showNow();
+  } catch (err) { alert('백업 파일을 읽지 못했어요.'); }
+  e.target.value = '';
+};
+
+render(); updateSpeedUI(); updateAutoUI();
+</script>
+</body>
+</html>
