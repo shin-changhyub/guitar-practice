@@ -49,7 +49,7 @@
   ol.list li:hover .tools, ol.list li.playing .tools { display: flex; }
   .empty { color: var(--muted); padding: 20px; text-align: center; font-size: 14px; line-height: 1.6; }
 
-  .player-wrap { position: relative; width: 100%; max-width: 1100px; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; }
+  .player-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; }
   .player-wrap #player, .player-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
   .placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); text-align: center; padding: 20px; }
   .now { margin: 14px 0 10px; font-size: 18px; font-weight: 600; }
@@ -59,6 +59,43 @@
   .notice { margin-top: 12px; padding: 10px 12px; background: #3a2a18; border: 1px solid #6b4a1f; border-radius: 8px; font-size: 13px; max-width: 1100px; display: none; }
   .notice a { color: var(--accent); }
   .help { color: var(--muted); font-size: 12px; margin-top: 16px; line-height: 1.7; max-width: 1100px; }
+  /* layout: player left, practice panel right */
+  .main-grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; align-items: start; }
+  @media (max-width: 1300px) { .main-grid { grid-template-columns: 1fr; } .side { max-width: 460px; } }
+  .main-left { min-width: 0; }
+  .side { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+  .side h3 { margin: 0; font-size: 15px; }
+  .cal-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .cal-head h3 { flex: 1; text-align: center; }
+  .mode { display: flex; gap: 4px; margin-bottom: 10px; }
+  .mode button { flex: 1; font-size: 12px; padding: 4px 6px; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal .wd { text-align: center; font-size: 11px; color: var(--muted); padding: 2px 0; }
+  .cal .wd.sun { color: #e57373; } .cal .wd.sat { color: #6fa8dc; }
+  .cal button.day { aspect-ratio: 1; padding: 0; font-size: 13px; border-radius: 6px; background: var(--bg); border: 2px solid transparent; }
+  .cal button.day.today { font-weight: 700; text-decoration: underline; }
+  .cal button.day.sel { border-color: #fff; }
+  .cal button.day:disabled { opacity: .3; cursor: default; }
+  .cal button.day.lv { color: #111; font-weight: 600; }
+  .legend { display: flex; align-items: center; gap: 3px; justify-content: center; font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+  .tracker { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+  .tracker .date { font-size: 13px; color: var(--muted); }
+  .tracker .song { font-weight: 600; margin: 4px 0 12px; font-size: 14px; word-break: break-all; }
+  .cnt-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .cnt-row .name { flex: 1; font-size: 14px; }
+  .cnt-row .val { min-width: 62px; text-align: center; font-size: 16px; font-weight: 600; }
+  .cnt-row .val small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .cnt-row button { width: 32px; padding: 4px 0; font-size: 16px; }
+  .bar { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; margin: 10px 0 4px; }
+  .bar > div { height: 100%; transition: width .2s; }
+  .pct { font-size: 12px; color: var(--muted); text-align: right; }
+  .done-btn { width: 100%; margin-top: 10px; padding: 9px; font-weight: 600; }
+  .done-btn.on { background: #3fae5a; border-color: #3fae5a; color: #111; }
+  .goals { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .goals input { width: 52px; padding: 3px 5px; text-align: center; }
+  .side .hint { color: var(--muted); font-size: 13px; line-height: 1.6; }
+  ol.list li .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; background: transparent; border: 1px solid var(--line); }
   kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 11px; }
 </style>
 </head>
@@ -85,6 +122,8 @@
   </aside>
 
   <main>
+   <div class="main-grid">
+   <div class="main-left">
     <div class="player-wrap">
       <div id="player"></div>
       <div class="placeholder" id="placeholder">왼쪽 목록에서 곡을 클릭하면 여기서 재생됩니다.</div>
@@ -117,8 +156,26 @@
     <div class="help">
       · 목록 항목을 <b>드래그</b>하거나 ▲▼ 버튼으로 순서를 바꿀 수 있어요. ✎ 제목 수정, ✕ 삭제.<br>
       · 목록은 이 브라우저에 자동 저장됩니다. 다른 컴퓨터/브라우저로 옮길 땐 <b>백업 저장 → 백업 불러오기</b>를 쓰세요.<br>
-      · 단축키: <kbd>Space</kbd> 재생/일시정지 · <kbd>←</kbd>/<kbd>→</kbd> 5초 이동 · <kbd>0</kbd> 처음부터 · <kbd>N</kbd> 다음 곡 · <kbd>P</kbd> 이전 곡 · <kbd>[</kbd>/<kbd>]</kbd> A/B 지정
+      · 단축키: <kbd>Space</kbd> 재생/일시정지 · <kbd>←</kbd>/<kbd>→</kbd> 5초 이동 · <kbd>0</kbd> 처음부터 · <kbd>N</kbd> 다음 곡 · <kbd>P</kbd> 이전 곡 · <kbd>[</kbd>/<kbd>]</kbd> A/B 지정<br>
+      · 연습 기록: 오른쪽 달력에서 날짜를 고르고(기본은 오늘) 전곡/부분 연습 횟수를 + − 로 기록하세요. 지난 날짜도 고칠 수 있어요.
     </div>
+   </div>
+
+   <section class="side" id="side">
+     <div class="cal-head">
+       <button class="small" id="calPrev" title="이전 달">◀</button>
+       <h3 id="calTitle"></h3>
+       <button class="small" id="calNext" title="다음 달">▶</button>
+     </div>
+     <div class="mode">
+       <button id="modeSong" title="선택한 곡의 기록만 표시">이 곡만 보기</button>
+       <button id="modeAll" title="모든 곡의 기록을 합쳐서 표시">전체 곡 보기</button>
+     </div>
+     <div class="cal" id="cal"></div>
+     <div class="legend" id="legend"></div>
+     <div class="tracker" id="tracker"></div>
+   </section>
+   </div>
   </main>
 </div>
 
@@ -134,9 +191,9 @@ let loopA = null, loopB = null, loopTimer = null;
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY));
-    if (s && Array.isArray(s.items)) return Object.assign({ autoNext: false, speed: 1 }, s);
+    if (s && Array.isArray(s.items)) return Object.assign({ autoNext: false, speed: 1, log: {}, calMode: 'song' }, s);
   } catch (e) {}
-  return { items: [], autoNext: false, speed: 1 };
+  return { items: [], autoNext: false, speed: 1, log: {}, calMode: 'song' };
 }
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -183,6 +240,7 @@ function render() {
   listEl.innerHTML = '';
   if (!state.items.length) {
     listEl.innerHTML = '<div class="empty">아직 등록된 영상이 없어요.<br>위에 유튜브 링크를 붙여넣고 <b>추가</b>를 누르세요.</div>';
+    renderSide();
     return;
   }
   state.items.forEach((it, i) => {
@@ -191,6 +249,7 @@ function render() {
     li.dataset.index = i;
     if (i === currentIndex) li.classList.add('playing');
     li.innerHTML = `
+      <span class="dot"></span>
       <img src="https://i.ytimg.com/vi/${it.videoId}/mqdefault.jpg" alt="" loading="lazy">
       <span class="title"></span>
       <span class="tools">
@@ -200,8 +259,15 @@ function render() {
         <button class="small" data-act="del" title="삭제">✕</button>
       </span>`;
     li.querySelector('.title').textContent = it.title;
+    const r = songRatio(it, getRec(selDate, it.id));
+    if (r !== null) {
+      const dot = li.querySelector('.dot');
+      dot.style.background = dot.style.borderColor = levelColor(r);
+      dot.title = `${dateLabel(selDate)} 완료도 ${Math.round(r * 100)}%`;
+    }
     listEl.appendChild(li);
   });
+  renderSide();
 }
 
 listEl.addEventListener('click', e => {
@@ -381,9 +447,175 @@ document.addEventListener('keydown', e => {
   else if (k === 'ArrowRight') { e.preventDefault(); player.seekTo(player.getCurrentTime() + 5, true); }
 });
 
+// ---------- Practice log & calendar ----------
+// state.log = { 'YYYY-MM-DD': { [itemId]: { full, part, done } } }
+const DEFAULT_FULL_GOAL = 3, DEFAULT_PART_GOAL = 5;
+// 5 steps from red to green
+const LEVELS = ['#e05252', '#e8873a', '#e3c13b', '#a3c94a', '#3fae5a'];
+const LEVEL_LABELS = ['~24%', '25~49%', '50~74%', '75~99%', '100%'];
+
+const pad2 = n => String(n).padStart(2, '0');
+const dateKey = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;  // local date
+const todayKey = () => dateKey(new Date());
+function dateLabel(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  const wd = '일월화수목금토'[new Date(y, m - 1, d).getDay()];
+  return `${m}월 ${d}일 (${wd})` + (key === todayKey() ? ' · 오늘' : '');
+}
+
+let selDate = todayKey();
+let calY = new Date().getFullYear(), calM = new Date().getMonth();
+
+const goalsOf = it => ({
+  full: Number.isFinite(it.fullGoal) ? it.fullGoal : DEFAULT_FULL_GOAL,
+  part: Number.isFinite(it.partGoal) ? it.partGoal : DEFAULT_PART_GOAL,
+});
+function getRec(date, id) {
+  const r = state.log[date] && state.log[date][id];
+  return { full: r?.full || 0, part: r?.part || 0, done: !!r?.done };
+}
+function setRec(date, id, rec) {
+  if (!state.log[date]) state.log[date] = {};
+  if (!rec.full && !rec.part && !rec.done) {
+    delete state.log[date][id];
+    if (!Object.keys(state.log[date]).length) delete state.log[date];
+  } else state.log[date][id] = rec;
+  save();
+}
+// completion 0..1 for one song on one day; null = not practiced
+function songRatio(it, rec) {
+  if (rec.done) return 1;
+  if (!rec.full && !rec.part) return null;
+  const g = goalsOf(it), parts = [];
+  if (g.full > 0) parts.push(Math.min(rec.full / g.full, 1));
+  if (g.part > 0) parts.push(Math.min(rec.part / g.part, 1));
+  return parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : 1;
+}
+// completion for a calendar day: selected song only, or average of songs practiced that day
+function dayRatio(date) {
+  const cur = state.items[currentIndex];
+  if (state.calMode === 'song' && cur) return songRatio(cur, getRec(date, cur.id));
+  const rs = state.items.map(it => songRatio(it, getRec(date, it.id))).filter(r => r !== null);
+  return rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null;
+}
+const levelOf = r => r >= 1 ? 4 : Math.min(3, Math.floor(r * 4));
+const levelColor = r => LEVELS[levelOf(r)];
+
+function renderSide() {
+  // mode buttons
+  const songMode = state.calMode === 'song' && currentIndex >= 0;
+  document.getElementById('modeSong').classList.toggle('active', songMode);
+  document.getElementById('modeAll').classList.toggle('active', !songMode);
+
+  // calendar
+  document.getElementById('calTitle').textContent = `${calY}년 ${calM + 1}월`;
+  const cal = document.getElementById('cal');
+  cal.innerHTML = '';
+  '일월화수목금토'.split('').forEach((w, i) => {
+    const el = document.createElement('div');
+    el.className = 'wd' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '');
+    el.textContent = w;
+    cal.appendChild(el);
+  });
+  const first = new Date(calY, calM, 1).getDay();
+  const days = new Date(calY, calM + 1, 0).getDate();
+  for (let i = 0; i < first; i++) cal.appendChild(document.createElement('div'));
+  const today = todayKey();
+  for (let d = 1; d <= days; d++) {
+    const key = `${calY}-${pad2(calM + 1)}-${pad2(d)}`;
+    const b = document.createElement('button');
+    b.className = 'day';
+    b.textContent = d;
+    b.dataset.date = key;
+    if (key === today) b.classList.add('today');
+    if (key === selDate) b.classList.add('sel');
+    if (key > today) b.disabled = true;
+    const r = dayRatio(key);
+    if (r !== null) {
+      b.classList.add('lv');
+      b.style.background = levelColor(r);
+      b.title = `완료도 ${Math.round(r * 100)}%`;
+    }
+    cal.appendChild(b);
+  }
+
+  // legend
+  document.getElementById('legend').innerHTML = '<span>0%</span>' +
+    LEVELS.map((c, i) => `<i style="background:${c}" title="${LEVEL_LABELS[i]}"></i>`).join('') + '<span>100%</span>';
+
+  // tracker for the selected song & date
+  const tr = document.getElementById('tracker');
+  const it = state.items[currentIndex];
+  if (!it) {
+    tr.innerHTML = `<div class="date">${dateLabel(selDate)}</div>
+      <p class="hint">왼쪽 목록에서 곡을 선택하면<br>이 곡의 연습 횟수를 기록할 수 있어요.</p>`;
+    return;
+  }
+  const rec = getRec(selDate, it.id), g = goalsOf(it);
+  const r = songRatio(it, rec) || 0;
+  const pct = Math.round(r * 100);
+  tr.innerHTML = `
+    <div class="date">${dateLabel(selDate)}</div>
+    <div class="song"></div>
+    <div class="cnt-row"><span class="name">전곡 연습</span>
+      <button data-cnt="full" data-d="-1" title="1회 빼기">−</button>
+      <span class="val">${rec.full}<small> / ${g.full}</small></span>
+      <button data-cnt="full" data-d="1" title="1회 더하기">+</button></div>
+    <div class="cnt-row"><span class="name">부분 연습</span>
+      <button data-cnt="part" data-d="-1" title="1회 빼기">−</button>
+      <span class="val">${rec.part}<small> / ${g.part}</small></span>
+      <button data-cnt="part" data-d="1" title="1회 더하기">+</button></div>
+    <div class="bar"><div style="width:${pct}%;background:${pct ? levelColor(r) : 'transparent'}"></div></div>
+    <div class="pct">완료도 ${pct}%</div>
+    <button class="done-btn ${r >= 1 ? 'on' : ''}" id="doneBtn">${
+      r >= 1 ? (rec.done ? '✔ 연습 완료 (누르면 취소)' : '✔ 목표 달성! 연습 완료') : '오늘 연습 완료로 체크'}</button>
+    <div class="goals">하루 목표 · 전곡 <input type="number" min="0" max="99" id="goalFull" value="${g.full}">
+      부분 <input type="number" min="0" max="99" id="goalPart" value="${g.part}"></div>`;
+  tr.querySelector('.song').textContent = `${currentIndex + 1}. ${it.title}`;
+  if (selDate !== today) tr.querySelector('#doneBtn').textContent =
+    tr.querySelector('#doneBtn').textContent.replace('오늘 ', '');
+}
+
+document.getElementById('cal').addEventListener('click', e => {
+  const b = e.target.closest('button.day'); if (!b || b.disabled) return;
+  selDate = b.dataset.date;
+  render();
+});
+document.getElementById('calPrev').onclick = () => { if (--calM < 0) { calM = 11; calY--; } renderSide(); };
+document.getElementById('calNext').onclick = () => { if (++calM > 11) { calM = 0; calY++; } renderSide(); };
+document.getElementById('modeSong').onclick = () => {
+  if (currentIndex < 0) { alert('왼쪽 목록에서 곡을 먼저 선택해 주세요.'); return; }
+  state.calMode = 'song'; save(); renderSide();
+};
+document.getElementById('modeAll').onclick = () => { state.calMode = 'all'; save(); renderSide(); };
+
+const trackerEl = document.getElementById('tracker');
+trackerEl.addEventListener('click', e => {
+  const it = state.items[currentIndex]; if (!it) return;
+  const rec = getRec(selDate, it.id);
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.cnt) {
+    rec[b.dataset.cnt] = Math.max(0, rec[b.dataset.cnt] + +b.dataset.d);
+  } else if (b.id === 'doneBtn') {
+    if (rec.done) rec.done = false;
+    else if ((songRatio(it, rec) || 0) >= 1) return;   // already complete by counts
+    else rec.done = true;
+  } else return;
+  setRec(selDate, it.id, rec);
+  render();
+});
+trackerEl.addEventListener('change', e => {
+  const it = state.items[currentIndex]; if (!it) return;
+  const v = Math.max(0, Math.min(99, parseInt(e.target.value, 10) || 0));
+  if (e.target.id === 'goalFull') it.fullGoal = v;
+  else if (e.target.id === 'goalPart') it.partGoal = v;
+  else return;
+  save(); render();
+});
+
 // ---------- Backup ----------
 document.getElementById('exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify({ items: state.items }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ items: state.items, log: state.log }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `기타연습목록_${new Date().toISOString().slice(0, 10)}.json`;
@@ -396,10 +628,17 @@ document.getElementById('importFile').onchange = async e => {
   try {
     const data = JSON.parse(await f.text());
     const items = (data.items || []).filter(x => x && /^[\w-]{11}$/.test(x.videoId))
-      .map(x => ({ id: x.id || uid(), videoId: x.videoId, start: +x.start || 0, title: String(x.title || x.videoId) }));
+      .map(x => {
+        const it = { id: x.id || uid(), videoId: x.videoId, start: +x.start || 0, title: String(x.title || x.videoId) };
+        if (Number.isFinite(x.fullGoal)) it.fullGoal = x.fullGoal;
+        if (Number.isFinite(x.partGoal)) it.partGoal = x.partGoal;
+        return it;
+      });
     if (!items.length) throw new Error();
     if (state.items.length && !confirm(`현재 목록(${state.items.length}개)을 백업 파일 목록(${items.length}개)으로 바꿀까요?`)) return;
-    state.items = items; currentIndex = -1; save(); render(); showNow();
+    state.items = items;
+    if (data.log && typeof data.log === 'object') state.log = data.log;  // old backups have no log: keep current
+    currentIndex = -1; save(); render(); showNow();
   } catch (err) { alert('백업 파일을 읽지 못했어요.'); }
   e.target.value = '';
 };
